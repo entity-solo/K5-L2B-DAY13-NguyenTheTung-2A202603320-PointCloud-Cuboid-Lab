@@ -1,122 +1,111 @@
 # Báo cáo Day 13 — Nguyễn Thế Tùng, 2A202603320
 
 ## 1. Kết luận trước
-Mã số sinh viên: 2A202603320 · Task CVAT: `D13-2A202603320` · Tập 10 frame: `s01f28, s01f45, s02f02, s02f42, s03f10, s03f56, s04f17, s04f57, s05f00, s05f48`.
-Môi trường thực hành: Hệ điều hành Windows 11, trình duyệt Google Chrome, phiên bản CVAT 2.83.1 (Community). Bạn cùng bàn đối kiểm: 2A202603318.
-Tổng số cuboid đã gán nhãn: 56 cuboid trên toàn bộ 10 frame (frame 1 đạt 8 cuboid, 9 frame còn lại đạt từ 5–6 cuboid/frame). Các frame có 5 cuboid (mức tối thiểu yêu cầu) gồm `s01f45, s02f02, s02f42, s03f10, s03f56, s05f00` do mật độ phương tiện thực tế trong phạm vi quan sát rõ (<= 30 m) không nhiều hoặc các vật thể ở quá xa/quá thưa điểm không đủ cơ sở hình học để suy luận chắc chắn.
-Công cụ `selfcheck` phát hiện 9 cuboid có cảnh báo (chủ yếu là cảnh báo kích thước chiều rộng/chiều dài của một số xe SUV, minivan hoặc xe tải).
-Về độ tin cậy: Tự tin nhất ở góc hướng yaw (mũi tên đỏ +X dọc thân xe) và độ cao mặt đáy (z đáy tiếp xúc sát mặt đường ~ -1.7 m, không bị lơ lửng hay chìm) nhờ luôn đối chiếu đồng thời trên cả 3 khung nhìn trực giao Top/Side/Front. Phần còn yếu nhất là việc xác định chính xác chiều dài và vị trí tâm dọc thân xe của các vật thể ở khoảng cách xa (> 25 m) do mây điểm LiDAR bị thưa thớt, chỉ thấy được vài điểm phản xạ ở một mặt nên phải dựa nhiều vào kích thước chuẩn trong Bảng 4.3 và đối chiếu ảnh camera.
 
-Cách dùng CVAT:
-- Đổi góc nhìn: Giữ chuột phải hoặc dùng các phím điều hướng (U, I, O, J, K, L) để xoay phối cảnh 3D; lăn con trỏ chuột giữa để phóng to/thu nhỏ; kéo chuột trái để di chuyển góc nhìn (pan); bấm phím nhìn từ trên xuống (Top-down view) để căn chỉnh hướng và kích thước dài/rộng.
-- Vẽ và chỉnh một cuboid: Chọn chế độ Shape -> nháy đúp hoặc kéo chuột để tạo cuboid 3D mới; quan sát và tinh chỉnh đồng thời trên cả 3 khung nhìn trực giao (Top, Side, Front) ở góc dưới màn hình để kéo 6 mặt hộp ôm sát mây điểm của vật.
-- Bật mũi tên hướng và kiểm tra: Tích chọn "Cuboid orientation" ở bảng Appearance để hiển thị trục tọa độ (+X đỏ ngắn dọc thân xe); định kỳ chạy `python scripts/lab.py preview` để chiếu cuboid lên 7 ảnh camera nhằm kiểm tra trực quan độ khớp thực tế.
+Task CVAT `D13-2A202603320` gồm các frame `s01f28, s01f45, s02f02, s02f42, s03f10, s03f56, s04f17, s04f57, s05f00, s05f48`. Môi trường thực hành là Windows 11, Google Chrome và CVAT Community 2.83.1. Bạn đổi kiểm có MSSV 2A202603318.
+
+Tôi đã gán **56 cuboid dạng Shape**. Frame đầu có 8 cuboid. Các frame `s01f45`, `s02f02`, `s02f42`, `s03f10`, `s03f56` và `s05f00` có 5 cuboid mỗi frame. Ba frame còn lại có 6 cuboid mỗi frame. Trong số này, 55 cuboid có tâm cách LiDAR không quá 50 m theo khoảng cách ngang. Phiếu tự kiểm có 9 cuboid bị gắn cờ, chủ yếu do kích thước.
+
+Tôi tự tin nhất khi xác định đầu xe và kiểm đáy hộp ở các vật gần có cụm điểm rõ. Với vật xa, tôi còn chưa chắc về chiều dài và vị trí tâm dọc thân xe vì thường chỉ thấy một phần bề mặt. Trong CVAT, tôi xoay khung 3D bằng cách kéo chuột trái, dời góc nhìn bằng chuột phải và zoom bằng con lăn. Tôi bật **Cuboid orientation**, kiểm lần lượt Top, Side, Front rồi đối chiếu ảnh camera để nhận loại vật và hướng đầu xe.
 
 ## 2. Đọc frame (Bước 2)
-Hai frame đọc kỹ: `s01f28` và `s01f45`. Ảnh minh họa: `t1-s01f28-3d.png`, `t1-s01f28-top.png`, `t1-s01f45-3d.png`, `t1-s01f45-top.png`.
 
-| Frame | Phía trước xe ở cạnh nào của ảnh nhìn từ trên xuống; +x, +y chỉ về đâu | Mặt đường (phẳng/dốc; thấp hơn LiDAR ~ m) | Vật xa nhất đọc được (~ m) | Loại vật thấy | Vật phía sau / hai bên | Cụm chưa đọc được |
-|---|---|---|---|---|---|---|
-| s01f28 | Phía trước xe ở cạnh dưới (-y); trục +x chỉ sang bên trái xe (cạnh trái); trục +y chỉ về phía sau xe (cạnh trên) | Phẳng, hơi dốc nhẹ về phía trước; mặt đường thấp hơn tâm LiDAR khoảng 1.70 m | ~35.5 m (xe con ở làn ngược chiều phía xa) | Car (sedan, SUV), Truck (xe tải/bán tải) | Phía sau có xe con cùng chiều bám đuôi (~18 m); bên trái có hàng xe chạy ngược chiều; bên phải có dải phân cách và cây xanh | Dải mây điểm rải rác ở khoảng cách >45 m bên lề đường không rõ là xe đỗ hay chướng ngại vật tĩnh |
-| s01f45 | Phía trước xe ở cạnh dưới (-y); trục +x chỉ sang trái (cạnh trái); trục +y chỉ ra sau (cạnh trên) | Bằng phẳng; mặt đường thấp hơn tâm LiDAR khoảng 1.72 m | ~25.0 m (các xe con di chuyển cùng chiều phía trước) | Car, Cyclist (xe máy có người lái), Pedestrian (người đi bộ) | Phía trước-trái có người đi bộ (~14.1 m) và người lái xe máy (~10.3 m); phía trước có 3 xe con cùng chiều; phía sau thoáng | Cụm điểm phản xạ rải rác ngoài mép vỉa hè phía trước-trái do cây cối che khuất một phần |
+Tâm LiDAR là gốc của hệ VF. Trong hệ tọa độ gắn với xe, `+x` hướng sang trái xe, `+y` hướng về phía sau và `+z` hướng lên. Cả hai ảnh nhìn từ trên được xoay để đầu xe nằm ở cạnh dưới. Vì vậy **trên ảnh**, `−y` hướng xuống, `+y` hướng lên và `+x` hướng sang phải. Cam01 nhìn về phía trước, theo `−y`.
 
-Ba điều chỉ camera cho biết:
-1. Màu sắc xe, thông tin biển số và đèn tín hiệu giao thông (LiDAR chỉ cung cấp tọa độ không gian và cường độ phản xạ dạng số).
-2. Chi tiết nhận dạng class khi điểm thưa (ví dụ phân biệt rõ người đi bộ dắt xe đạp so với người đi bộ thông thường, hoặc kiểu dáng xe sedan vs hatchback).
-3. Hướng mặt thực tế của người đi bộ hoặc nhận diện chi tiết đầu/đuôi xe khi xe bị che khuất một phần chỉ lộ bề mặt phẳng.
+| Ảnh | Cách đọc |
+|---|---|
+| `t1-s01f28-3d.png` | Góc nghiêng cho thấy các dải điểm mặt đường ở dưới các cụm điểm thân xe. Dùng góc này để xem độ cao của cụm điểm so với mặt đường. |
+| `t1-s01f28-top.png` | Nhìn từ trên giúp tách các cụm xe trước, sau và hai bên theo hướng của ảnh. Cụm xe ở xa và cụm ven đường thưa hơn các cụm gần LiDAR. |
+| `t1-s01f45-3d.png` | Góc nghiêng giúp phân biệt mặt đường và các cụm đứng cao hơn, như thân xe và người. |
+| `t1-s01f45-top.png` | Nhìn từ trên cho thấy vị trí tương đối của các xe phía trước và các vật lệch về một bên. Người đi bộ và xe hai bánh có `x < 0`, ở phía trước bên phải xe thu dữ liệu. |
 
-Ba điều chỉ LiDAR cho biết:
-1. Khoảng cách hình học 3D chính xác từng centimet từ xe thu dữ liệu đến mọi điểm trên bề mặt vật thể (camera đơn mắt khó ước lượng độ sâu chính xác tuyệt đối).
-2. Kích thước vật lý thực tế 3D (dài, rộng, cao tính bằng mét) độc lập hoàn toàn với hiệu ứng phối cảnh quang học và góc chụp của ống kính camera.
-3. Vị trí chính xác và bao quát toàn cảnh 360° xung quanh xe kể cả ở góc mù giữa các camera hoặc trong điều kiện ánh sáng chói chang, bóng râm hay ban đêm.
+| Frame | Mặt đường | Vật xa nhất còn đọc được | Loại vật và vị trí | Cụm chưa đọc được |
+|---|---|---|---|---|
+| `s01f28` | Gần phẳng, có vẻ hơi dốc về phía trước, thấp hơn LiDAR khoảng 1,70 m. | Xe con ở xa khoảng 35,5 m. | Car và Truck. Phía sau có xe con cùng chiều khoảng 18 m. Bên trái xe thu dữ liệu có các xe ngược chiều. | Cụm điểm ven đường ngoài khoảng 45 m, chưa đủ để phân biệt xe đỗ với vật tĩnh. |
+| `s01f45` | Gần phẳng, thấp hơn LiDAR khoảng 1,72 m. | Xe phía trước khoảng 25 m theo quan sát khi đọc cảnh. | Car, Cyclist và Pedestrian. Người đi bộ cách khoảng 14,1 m và xe hai bánh cách khoảng 10,3 m, đều ở trước-phải. | Cụm điểm rải rác ngoài mép vỉa hè phía trước, chưa phân biệt rõ vật. |
 
-Tám frame lướt:
+Ảnh camera giúp tôi nhận màu và đèn xe, phân biệt dáng xe hoặc người đang lái với người dắt xe, và nhận đầu xe khi cụm điểm chỉ hiện một mặt. LiDAR cho phép đo khoảng cách tới các bề mặt có điểm trả về, ước lượng kích thước theo mét và đặt các cụm điểm hai bên hoặc phía sau trong cùng hệ tọa độ 360°. Đối với vật xa hoặc bị che, phần thể tích thiếu điểm vẫn phải suy luận từ hình dạng và ảnh camera.
 
-| Frame | Phía trước ở cạnh nào của ảnh nhìn từ trên xuống | Điều lạ (nếu có) |
+| Frame lướt | Phía trước trong góc nhìn từ trên đã căn | Quan sát |
 |---|---|---|
-| s02f02 | Cạnh dưới (-y) | Có một xe buýt (Bus) cỡ lớn vượt sát bên trái xe, mật độ điểm phản xạ cực kỳ dày đặc (>16.000 điểm) |
-| s02f42 | Cạnh dưới (-y) | Đoạn đường hơi cong nhẹ, các phương tiện ở xa (30–40 m) mật độ điểm rất thưa |
-| s03f10 | Cạnh dưới (-y) | Mật độ giao thông đông, nhiều xe con bám sát nhau cả phía trước lẫn phía sau trong phạm vi 10 m |
-| s03f56 | Cạnh dưới (-y) | Có xe buýt lớn ở làn đối diện cách ~30 m và người đi xe máy (Cyclist) ở làn bên cạnh |
-| s04f17 | Cạnh dưới (-y) | Tuyến đường nhiều làn xe, nhiều ô tô con chạy song song cùng chiều |
-| s04f57 | Cạnh dưới (-y) | Xuất hiện xe chạy ở khoảng cách xa (>35 m) ở làn đối diện |
-| s05f00 | Cạnh dưới (-y) | Có xe tải (Truck) lớn chạy phía sau đuôi xe (~10 m) phản xạ mây điểm rất rõ nét |
-| s05f48 | Cạnh dưới (-y) | Khu vực giao lộ rộng, có xe con chạy chuyển làn và xe tải lớn ở góc xa phía sau (~47 m) |
+| `s02f02` | Cạnh dưới (`−y`) | Xe buýt bên trái ở rất gần, có hơn 16.000 điểm trong cuboid. |
+| `s02f42` | Cạnh dưới (`−y`) | Các xe khoảng 30–40 m có cụm điểm thưa. |
+| `s03f10` | Cạnh dưới (`−y`) | Nhiều xe phía trước và phía sau, một số trong khoảng 10 m. |
+| `s03f56` | Cạnh dưới (`−y`) | Có xe buýt ở làn đối diện khoảng 30 m và xe hai bánh ở làn bên cạnh. |
+| `s04f17` | Cạnh dưới (`−y`) | Nhiều xe con chạy song song cùng chiều. |
+| `s04f57` | Cạnh dưới (`−y`) | Xe ở xa trên làn đối diện, còn ít điểm. |
+| `s05f00` | Cạnh dưới (`−y`) | Xe tải phía sau khoảng 10 m có cụm điểm rõ. |
+| `s05f48` | Cạnh dưới (`−y`) | Cảnh giao lộ, có xe chuyển làn và một xe tải phía sau khoảng 47 m. |
 
 ## 3. Ba cuboid có hướng dẫn (Bước 3)
-Ảnh minh họa: `t2-a-car.png`, `t2-b-bus-truck.png`, `t2-c-ped-cyclist.png`.
 
-| Vật | Frame, idx | Class | Mũi tên yaw đúng hướng? | Đáy chạm đường? | Đã kiểm Top/Side/Front + ảnh? | Kích thước trong bảng 4.3? |
-|---|---|---|---|---|---|---|
-| (a) xe con gần | s01f28, idx 1 | Car | Đúng (yaw = 270.0°, mũi đỏ dọc thân xe hướng về trước) | Chạm đường (z đáy = -1.80 m, sát mặt đường -1.7 m) | Đã kiểm tra đầy đủ cả 3 view và ảnh camera | L: 5.05 m, W: 2.09 m, H: 1.66 m (phù hợp SUV/sedan cỡ lớn) |
-| (b) xe buýt hoặc xe tải | s01f28, idx 4 | Truck | Đúng (yaw = 90.2°, ngược chiều) | Chạm đường (z đáy = -2.06 m) | Đã kiểm tra đầy đủ cả 3 view và ảnh camera | L: 5.98 m, W: 2.41 m, H: 2.42 m (phù hợp xe tải nhẹ/thùng) |
-| (c) người đi bộ hoặc xe hai bánh | s01f45, idx 4 | Cyclist | Đúng (yaw = 280.1°, cùng chiều) | Chạm đường (z đáy = -1.35 m, trên mặt đường) | Đã kiểm tra đầy đủ cả 3 view và ảnh camera | L: 1.66 m, W: 0.61 m, H: 1.73 m (phù hợp xe hai bánh có người lái) |
+Trên ba ảnh, khung phối cảnh cho biết hộp đang bao vật nào. **Top** dùng để kiểm chiều dài, chiều rộng và hướng mũi tên. **Side** dùng để xem hai đầu hộp và cao độ đáy. **Front** dùng để kiểm bề ngang, chiều cao và đáy so với các điểm mặt đường. Ảnh camera bên cạnh dùng để đối chiếu loại vật và đầu, đuôi xe. Vạch đỏ ngắn `+X` xoay theo từng cuboid.
 
-Vòng hiệu chuẩn:
-Qua buổi trao đổi hiệu chuẩn cùng lớp và coach, bài học quan trọng nhất là việc xác định hướng mũi tên trục tọa độ của cuboid trong CVAT. Mũi tên đỏ ngắn (`+X` cuboid) luôn phải hướng theo hướng di chuyển của phương tiện (hoặc hướng đầu xe khi đứng yên), không được để nằm ngang thân xe. Đối với xe di chuyển cùng chiều phía trước xe thu dữ liệu, góc `yaw_deg` phải xoay quanh mốc 270°; đối với xe chạy ngược chiều đối diện, góc `yaw_deg` phải xoay quanh mốc 90°. Mặt đáy của cuboid cần được hạ sát mặt đường (z đáy xấp xỉ -1.7 m), không để lơ lửng hoặc chìm sâu dưới lòng đất.
-Về các vật bỏ qua vì không đủ cơ sở: Tại frame `s02f42`, có một cụm mây điểm nhỏ khoảng 8–10 điểm ở lề đường bên phải cách khoảng 48 m (thuộc dạng nghi vấn: `LOW_VISIBILITY` / `UNCERTAIN_SCOPE`); do số lượng điểm quá ít (dưới 15% thể tích xe) và ảnh camera bị mờ ở cự ly xa không thể xác định chắc chắn là ô tô hay vật thể tĩnh ven đường nên đã bỏ qua theo đúng quy tắc guideline để tránh tạo nhãn sai.
+| Ảnh và cuboid | Hướng và đáy | Đối chiếu Bảng 4.3 |
+|---|---|---|
+| `t2-a-car.png` · `s01f28`, idx 1, **Car** | Yaw 270,0°, dọc thân xe và cùng chiều với xe thu dữ liệu. Kiểm hai đầu hộp ở Top, rồi nhìn mép đáy ở Side và Front. Đáy −1,801 m, thấp hơn mặt đường ước lượng quanh hộp 0,08 m. | Dài × rộng × cao là 5,05 × 2,09 × 1,66 m, phù hợp dải SUV/minivan. |
+| `t2-b-bus-truck.png` · `s01f28`, idx 4, **Truck** | Yaw 90,2°, gần hướng ngược chiều. Side cho thấy chiều dài thân/thùng. Front cho thấy bề ngang và đáy −2,058 m, cao hơn mặt đường ước lượng tại chỗ khoảng 0,01 m. | 5,98 × 2,41 × 2,42 m, nằm trong dải xe tải hộp/xe tải nhẹ. |
+| `t2-c-ped-cyclist.png` · `s01f45`, idx 4, **Cyclist** | Yaw 280,1°, gần hướng cùng chiều. Top dùng để kiểm cả chiều dài xe và người trong một hộp. Side và Front dùng để kiểm khoảng từ điểm tiếp xúc bánh xe đến đỉnh đầu người. Đáy −1,354 m cao hơn mức đường ước lượng quanh hộp 0,32 m, nên còn cần đối chiếu với nền ngay dưới bánh. | 1,66 × 0,61 × 1,73 m. Nằm trong dải xe đạp có người. Chiều dài và chiều rộng thấp hơn dải tham chiếu xe máy, nên kiểu xe và độ khít ở hai phương này còn chưa chắc. |
+
+Qua vòng hiệu chuẩn, tôi dùng mốc gần 270° cho xe chạy thẳng cùng chiều và gần 90° cho xe chạy ngược chiều trên đoạn đường này. Tôi đối chiếu hướng với ảnh camera và kiểm đáy theo mặt đường tại vị trí của vật.
+
+Trường hợp bỏ qua là cụm điểm ven đường ở `s02f42`, phía bên phải, khoảng 48 m. Tôi ước lượng chỉ có khoảng 8–10 điểm, còn ảnh camera ở cự ly đó chưa đủ rõ để phân biệt xe với vật tĩnh. Tôi ghi trường hợp này là `LOW_VISIBILITY` / `UNCERTAIN_SCOPE`.
 
 ## 4. Bốn hiện tượng chất lượng (Bước 4)
 
-| Hiện tượng | Frame / tên ảnh / nguồn | Nguyên nhân (giả thuyết) | Thấy gì trên point cloud | Hệ quả khi gán (theo guideline) |
-|---|---|---|---|---|
-| 1. Bóng che | s01f28 / `t4-1-bong-che.png` / Task cá nhân | Chùm tia laser LiDAR bị thân xe đi trước cản lại, tạo ra một vùng bóng tối (shadow) hình dẻ quạt phía sau khiến xe phía sau hoặc phần trước của chính xe đó bị mất điểm phản xạ | Chỉ quan sát được các điểm phản xạ ở mặt sau và một cạnh sườn xe; mặt trước và phần lòng trong của xe hoàn toàn rỗng; sau xe có vệt khuyết điểm kéo dài | Bật thuộc tính `occluded` khi vật bị che khuất một phần bởi vật khác; áp dụng kích thước chuẩn trong Bảng 4.3 để nội suy bao trọn kích thước thực của xe thay vì chỉ bọc phần điểm nhìn thấy |
-| 2. Thưa ở xa | s02f42 / `t4-2-thua-o-xa.png` / Task cá nhân | Các tia laser phát ra theo góc mở rẻ quạt cố định, khoảng cách càng xa thì khoảng cách giữa các tia càng giãn rộng, số tia bắn trúng bề mặt vật thể giảm tỉ lệ nghịch với bình phương khoảng cách | Vật thể ở khoảng cách >30 m chỉ nhận được 2–3 đường quét (ring), tổng số điểm chỉ còn vài chục điểm rải rác thay vì hàng nghìn điểm như ở cự ly gần | Áp dụng quy tắc 15–20% thể tích; nếu nhận diện được hình dạng cơ bản thì dựng cuboid theo kích thước tham chiếu Bảng 4.3; nếu quá thưa và không đủ bằng chứng đối chiếu camera thì không vẽ |
-| 3. Phản xạ thấp / ít điểm bất thường | s01f45 / `t4-3-phan-xa-thap.png` / Task cá nhân | Kính chắn gió ô tô, bề mặt sơn đen bóng hoặc vũng nước có tính chất phản xạ gương hoặc hấp thụ bước sóng laser 905 nm, làm tia bị tán xạ lệch hướng không phản xạ ngược lại đầu thu LiDAR | Phần kính chắn gió trước/sau và nóc kính của xe ô tô bị "thủng lỗ" hoặc không có điểm nào; mặt đường nhẵn bị khuyết điểm | Nhận biết đó là hiện tượng vật lý bình thường, không co hẹp cuboid lại theo các lỗ thủng này mà phải bao trọn chiều cao xe (tính cả phần kính và mui xe) |
-| 4. Điểm lạ | s05f48 / `t4-4-diem-la.png` / Task cá nhân | Do bụi đường, hơi ẩm, hoặc tia laser phản xạ nhiều lần (multipath) qua mặt đường gồ ghề / gầm xe phản xạ ngược lại cảm biến | Xuất hiện một số điểm phản xạ trôi nổi sâu dưới mặt đường (z < -2.2 m) hoặc lơ lửng giữa khoảng trống giữa các xe | Không bao các điểm này vào cuboid; loại bỏ các điểm nhiễu lơ lửng để tránh làm biến dạng kích thước chiều cao hoặc làm chìm đáy cuboid xuống dưới lòng đất |
+| Hiện tượng | Ảnh, frame và nguồn | Cách đọc ảnh và giả thuyết | Hệ quả khi gán |
+|---|---|---|---|
+| Bóng che | `t4-1-bong-che.png` · `s01f28` · task cá nhân | Nhìn từ trên, vùng theo tia từ LiDAR đi qua Car idx 1 có ít điểm mặt đường hơn vùng sát bên. Vùng khuyết nằm xa tâm LiDAR hơn xe, về phía sau-phải của xe thu dữ liệu. Giả thuyết là thân xe chặn tia đi sâu hơn theo hướng đó. | Vùng khuyết là vùng chưa quan sát được. Nếu một vật khác bị che một phần, đánh dấu `occluded` và bao phần thể tích có thể suy luận từ cụm điểm, ảnh camera và kích thước tham chiếu. |
+| Thưa ở xa | `t4-2-thua-o-xa.png` · `s02f42` · task cá nhân | Nhìn cụm Car ở giữa khung nhìn, idx 5, cách 39,78 m và có 72 điểm trong hộp. Một Car gần hơn trong cùng frame, idx 1 ở 24,76 m, có 286 điểm. Giả thuyết là với cùng bước góc quét, các tia cách nhau xa hơn trên bề mặt vật ở xa. | Nếu thấy khoảng 15–20% thể tích hoặc có đủ căn cứ từ hình dạng và camera, có thể vẽ cả hộp. Trường hợp quá thưa như cụm khoảng 48 m ở mục 3 được bỏ qua và ghi `LOW_VISIBILITY`. |
+| Phản xạ thấp hoặc ít điểm bất thường | `t4-3-phan-xa-thap.png` · `s01f45` · task cá nhân | Trong một phần tư chiều cao trên cùng của cuboid, Car idx 1 ở 10,36 m có 314 điểm và Car idx 2 ở 9,36 m có 475 điểm. Khoảng cách, góc bề mặt hoặc vật liệu có thể góp phần tạo chênh lệch. Chỉ từ số điểm và ảnh này chưa xác định được nguyên nhân. | Giữ kích thước theo toàn bộ thân và mui xe khi có đủ cơ sở từ hình dạng và camera. Ghi phần ít điểm như một quan sát cần lưu ý khi kiểm. |
+| Điểm lạ | `t4-4-diem-la.png` · `s02f42` · task cá nhân | Cụm nhỏ nằm tách phía dưới dải điểm mặt đường, hơi lệch phải so với tâm ảnh. Cụm có **12 điểm** ở phía trước-phải, cách LiDAR khoảng **20 m** theo mặt phẳng ngang. Tâm cụm có `z ≈ −9,31 m`, thấp hơn mặt đường ước quanh cụm (`z ≈ −1,79 m`) khoảng **7,5 m**. Phản xạ nhiều lần là một giả thuyết. | Cụm nằm tách hẳn dưới mặt đường. Không gán cụm thành vật và không kéo đáy cuboid xuống để bao các điểm đó. |
 
 ## 5. Số từ cuboid của tôi (Bước 5)
-Số liệu trích xuất từ `submission/D13-2A202603320-bangA.csv` và `submission/D13-2A202603320-tukiem.csv`:
 
-| Cuboid (frame, idx, class) | z | h | z đáy = z − h/2 | dist_m | r = √(x²+y²+z²) | yaw_deg | Nhận xét (lơ lửng / chìm / chạm đường) |
-|---|---|---|---|---|---|---|---|
-| s01f28, idx 1, Car | -0.971 m | 1.660 m | -1.801 m | 6.89 m | 6.96 m | 270.0° | Chạm đường (z đáy -1.80 m rất sát mặt đường chuẩn -1.7 m) |
-| s01f45, idx 1, Car | -1.064 m | 1.751 m | -1.939 m | 10.36 m | 10.41 m | 268.3° | Chạm đường (lốp xe tiếp xúc tốt với mặt đường) |
-| s01f45, idx 5, Pedestrian | -0.306 m | 1.570 m | -1.091 m | 14.13 m | 14.13 m | 258.3° | Chạm đường (người đi bộ đi trên vỉa hè cao hơn lòng đường ~0.6 m) |
+Số liệu lấy từ `submission/D13-2A202603320-bangA.csv` và `submission/D13-2A202603320-tukiem.csv`. `ground_gap_m` là chênh giữa đáy hộp và mặt đường ước lượng quanh hộp. Giá trị âm nghĩa là đáy thấp hơn mức ước lượng, giá trị dương nghĩa là đáy cao hơn.
 
-(a) Cuboid gần nhất và xa nhất:
-- Cuboid gần nhất: `s02f02, idx 1, Bus` ở khoảng cách `dist_m = 3.48 m`, `r = 3.53 m` (hoặc xe con gần nhất là `s03f10, idx 3, Car` ở `dist_m = 4.24 m`, `r = 4.36 m`).
-- Cuboid xa nhất: `s05f48, idx 4, Car` ở khoảng cách `dist_m = 77.42 m`, `r = 77.43 m`. Trong phạm vi chấm điểm (<= 50 m), cuboid xa nhất là `s05f48, idx 6, Truck` ở `dist_m = 46.96 m`, `r = 46.96 m`.
+| Cuboid | z (m) | h (m) | z đáy = z − h/2 (m) | dist_m (m) | r (m) | Yaw (°) | Nhận xét |
+|---|---:|---:|---:|---:|---:|---:|---|
+| `s01f28`, idx 1, Car | −0,971 | 1,660 | −1,801 | 6,89 | 6,96 | 270,0 | Gần mặt đường quanh hộp, chênh −0,08 m. |
+| `s01f45`, idx 1, Car | −1,064 | 1,751 | −1,939 | 10,36 | 10,41 | 268,3 | Đáy hơi thấp hơn mặt đường ước lượng, chênh −0,16 m. |
+| `s01f45`, idx 5, Pedestrian | −0,306 | 1,570 | −1,091 | 14,13 | 14,13 | 258,3 | Đáy cao hơn mức ước lượng quanh hộp 0,18 m. Vỉa hè cao hơn lòng đường có thể giải thích một phần chênh lệch. |
 
-(b) Kích thước l, w, h so với Bảng 4.3:
-- Người đi bộ `s01f45, idx 5, Pedestrian`: L = 0.50 m, W = 0.58 m, H = 1.57 m. Cả 3 chiều nằm hoàn toàn trong khoảng chuẩn của Bảng 4.3 (Dài: 0.4–0.9 m, Rộng: 0.5–0.9 m, Cao: 1.50–1.95 m).
-- Xe con `s01f28, idx 1, Car`: L = 5.05 m, W = 2.09 m, H = 1.66 m. Chiều dài L (5.05 m) và chiều rộng W (2.09 m) nằm ở ngưỡng trên của dải chuẩn SUV/minivan do xe thực tế là loại SUV 7 chỗ cỡ lớn và kích thước hộp bao gồm cả gương chiếu hậu hai bên.
+**(a) Gần nhất và xa nhất.** `dist_m = √(x² + y²)` là khoảng cách ngang và `r = √(x² + y² + z²)` là khoảng cách 3D, đều đo đến tâm hộp.
 
-(c) Góc yaw của xe cùng chiều và ngược chiều:
-- Xe cùng chiều phía trước (`s01f45, idx 2, Car`): `yaw_deg = 269.6°`, rất sát với mốc lý thuyết 270.0°.
-- Xe ngược chiều đối diện (`s01f28, idx 4, Truck`): `yaw_deg = 90.2°`, rất sát với mốc lý thuyết 90.0°.
+- Gần nhất là Bus `s02f02`, idx 1, với `dist_m = 3,43 m` và `r = 3,43 m` sau khi làm tròn.
+- Xa nhất trong bảng A là Car `s05f48`, idx 4, với `dist_m = 77,42 m` và `r = 77,43 m`. Cuboid này nằm ngoài vùng chấm 50 m.
+- Xa nhất trong phạm vi 50 m là Truck `s05f48`, idx 6, với `dist_m = 46,91 m` và `r = 46,92 m`.
 
-Mật độ theo khoảng cách (4 cuboid ở các `dist_m` khác nhau):
+**(b) So kích thước với Bảng 4.3.** Pedestrian `s01f45`, idx 5, có kích thước 0,50 × 0,58 × 1,57 m, trong dải người lớn 0,40–0,90 × 0,50–0,90 × 1,50–1,95 m. Car `s01f28`, idx 1, có kích thước 5,05 × 2,09 × 1,66 m, trong dải SUV/minivan 4,40–5,30 × 1,80–2,10 × 1,65–2,10 m. Bề rộng ở gần cận trên của dải này.
 
-| Cuboid (frame, idx, class) | dist_m | Số điểm (`points_in`) |
-|---|---|---|
-| s01f28, idx 1, Car | 6.89 m | 2130 |
-| s01f28, idx 3, Car | 13.97 m | 1004 |
-| s01f28, idx 7, Car | 21.24 m | 359 |
-| s01f28, idx 8, Car | 35.65 m | 120 |
+**(c) Yaw cùng chiều và ngược chiều.** Car `s01f45`, idx 2, có yaw 269,6°, gần mốc cùng chiều 270°. Truck `s01f28`, idx 4, có yaw 90,2°, gần mốc ngược chiều 90°.
 
-Quy luật mật độ và tự kiểm:
-- Quy luật mật độ: Khi khoảng cách tăng gấp đôi (từ 6.89 m lên 13.97 m), số điểm LiDAR rơi trên thân xe giảm hơn một nửa (từ 2130 điểm xuống 1004 điểm); khi khoảng cách tăng gấp 5 lần (~35.65 m), số điểm suy giảm mạnh chỉ còn khoảng 1/18 (~120 điểm). Kết quả này hoàn toàn tương thích với đường cong lý thuyết suy giảm mật độ theo bình phương khoảng cách đã học trên lớp (xe con: ~1968 điểm ở 0–10 m, ~718 điểm ở 10–20 m, ~214 điểm ở 20–30 m, ~72 điểm ở 30–40 m).
-- Tự kiểm và chỉnh sửa:
-  1. Đã sửa cuboid `Car` ở `s01f28`: Ban đầu bị xoay nhầm trục 90° dẫn đến L = 2.07 m < W = 3.39 m. Sau khi phát hiện qua `selfcheck`, đã xoay lại yaw về 270° để vạch đỏ +X dọc theo thân xe (kích thước sau sửa: L = 5.05 m, W = 2.09 m).
-  2. Đã sửa cuboid `Truck` ở `s05f48, idx 6`: Ban đầu vẽ hộp quá rộng (W = 4.46 m), sau khi kiểm tra lại trên view Front/Top đã thu hẹp lại về W = 3.48 m ôm sát thành xe.
-  3. Các cảnh báo giữ nguyên: Các cảnh báo về chiều rộng của một số xe con (`s02f02, idx 4` W = 2.44 m; `s02f42, idx 1` W = 2.33 m; `s05f00, idx 3` W = 2.39 m) được giữ nguyên vì sau khi đối chiếu ảnh camera trước và bên hông, đây là các dòng xe SUV/bán tải lớn có gương chiếu hậu nhô rộng sang hai bên.
+| Cuboid (đều là Car ở `s01f28`) | dist_m (m) | `points_in` (điểm) |
+|---|---:|---:|
+| idx 1 | 6,89 | 2.130 |
+| idx 3 | 13,78 | 1.004 |
+| idx 7 | 21,24 | 359 |
+| idx 8 | 35,46 | 120 |
 
-Đổi kiểm:
-Đã thực hiện đổi kiểm chéo bài làm với bạn có MSSV: 2A202603318.
-Hai con số được đối chiếu với bảng A:
-1. Số lượng cuboid ở frame đầu tiên `s01f28`: Bạn đạt 8 cuboid, tôi đạt 8 cuboid (hoàn toàn khớp nhau).
-2. Tọa độ z đáy của xe con gần nhất ở frame `s01f28`: Bạn đạt -1.78 m, tôi đạt -1.80 m (chênh lệch chỉ 0.02 m, cả hai đều đạt yêu cầu tiếp xúc mặt đường chuẩn ~ -1.7 m).
+Khi khoảng cách tăng từ 6,89 m đến 35,46 m, số điểm trong hộp giảm từ 2.130 xuống 120. Xu hướng phù hợp với các mốc trung vị trên slide ở bốn dải tương ứng, lần lượt khoảng 1.968, 718, 214 và 72 điểm. Góc quan sát, phần bị che và bề mặt vật có thể làm từng xe lệch khỏi xu hướng chung.
+
+Tôi đã chỉnh hướng hộp của một Car và thu chiều rộng hộp của một Truck sau khi tự kiểm.
+
+1. Car `s01f28`, idx 1. Hộp ban đầu xoay lệch khoảng 90°. Tôi căn lại vạch đỏ theo thân xe, được yaw 270,0°, chiều dài 5,05 m và chiều rộng 2,09 m.
+2. Truck `s05f48`, idx 6. Tôi thu chiều rộng từ khoảng 4,46 m xuống 3,48 m sau khi đối chiếu Front và Top. Phiếu tự kiểm vẫn gắn cờ chiều rộng. Cụm điểm ở gần 47 m, nên bề ngang chính xác còn chưa chắc.
+
+Tôi giữ các cờ chiều rộng của Car `s02f02` idx 4 (2,44 m), `s02f42` idx 1 (2,33 m) và `s05f00` idx 3 (2,39 m). Khi đối chiếu camera, tôi đã tính đến phần gương nhô ra. Đây là các trường hợp còn cần kiểm lại ranh giới thân xe và class.
+
+Tôi đổi kiểm với bạn MSSV 2A202603318. Hai số đã trao đổi là số cuboid ở `s01f28` (mỗi người có 8) và đáy cuboid xe con gần nhất (bạn −1,78 m, tôi −1,80 m, chênh khoảng 0,02 m).
 
 ## 6. Ý nghĩa của nhãn, cách dùng AI và điều còn chưa chắc
-(a) Ý nghĩa từ phía model tự hành:
-- Vì sao nhãn 3D đo bằng mét chứ không phải pixel: Xe tự hành vận hành trong không gian vật lý thực tế 3D; các thuật toán lập kế hoạch quỹ đạo di chuyển (path planning), tính toán khoảng cách an toàn và phanh khẩn cấp tự động (AEB) bắt buộc phải dựa trên khoảng cách và kích thước vật lý chính xác tính bằng mét. Nhãn 2D theo pixel trên ảnh không thể hiện được độ sâu chính xác do phụ thuộc vào tiêu cự và góc phối cảnh quang học của camera.
-- Vì sao vật thưa điểm cần quy tắc riêng: Ở khoảng cách xa (> 25 m), mây điểm LiDAR chỉ phản xạ được từ một góc hoặc bề mặt ngoài của vật thể; nếu người gán nhãn chỉ vẽ hộp bao khít các điểm quan sát được thì mô hình AI sẽ học sai kích thước xe (tưởng xe bị ngắn lại hoặc biến dạng), dẫn đến ước lượng sai kích thước và nguy cơ va chạm trong thực tế; do đó cần quy tắc dựa vào kích thước chuẩn để suy luận bao trọn toàn bộ thể tích vật lý của xe.
 
-(b) Cách dùng AI:
-- Công cụ: Sử dụng trợ lý AI Google Antigravity trong quá trình thực hành.
-- Câu hỏi chính: Nhờ giải thích hệ tọa độ VF (+x trái, +y sau, +z lên, cam01 nhìn về hướng -y), cách sử dụng các lệnh script kiểm thử tự động (`lab.py sync`, `check_submission.py`) và phân tích nguyên nhân các cảnh báo kích thước của `selfcheck`.
-- Cách dùng kết quả: Tự tay thực hiện 100% thao tác gán nhãn 56 cuboid trên công cụ CVAT; áp dụng các kiến thức về hệ tọa độ được giải thích để kiểm tra và tinh chỉnh lại các góc xoay yaw và mặt đáy cuboid.
+**(a) Ý nghĩa với mô hình tự hành.** Cuboid dùng mét để mô hình học vị trí và kích thước trong không gian xe vận hành, từ đó ước lượng khoảng cách an toàn. Với vật thưa điểm, hộp chỉ ôm phần bề mặt có điểm sẽ làm kích thước học được lệch khỏi kích thước thực. Quy tắc về mức nhìn thấy và kích thước tham chiếu giúp giữ nhãn nhất quán khi có đủ căn cứ suy luận.
 
-(c) Điều còn chưa chắc:
-Đối với một số phương tiện di chuyển ở khoảng cách xa (> 35 m) ở làn đường đối diện trong frame `s04f57` và `s05f48`, do mật độ mây điểm rất thưa (dưới 30 điểm phản xạ) và hình ảnh camera ở cự ly xa bị giảm độ nét, việc định vị chính xác vị trí đầu xe và đuôi xe chủ yếu dựa trên kích thước xe sedan trung bình trong Bảng 4.3; do đó vị trí tâm cuboid dọc theo trục xe có thể có độ dịch chuyển khoảng ±0.3 m so với nhãn chuẩn tuyệt đối.
+**(b) Cách dùng AI.**
+
+- Tôi dùng Google Antigravity và Codex.
+- Tôi hỏi về hệ trục VF, cách chạy `lab.py sync` và `check_submission.py`, ý nghĩa cờ tự kiểm và cách chụp ảnh CVAT.
+- Tôi tự gán nhãn trong CVAT. Antigravity hỗ trợ giải thích lệnh và hệ trục. Codex hỗ trợ lưu ảnh từ CVAT trên máy, xác định hướng trục, diễn giải bộ ảnh và biên tập báo cáo dựa trên bài làm và số liệu đã có.
+
+**(c) Điều còn chưa chắc.** Ở `s04f57` và `s05f48`, một số xe ở xa chỉ có ít điểm trên một mặt, nên tâm hộp có thể lệch dọc thân xe khoảng vài chục centimét. Đây là ước lượng từ thao tác gán nhãn. Mức nền ngay dưới Cyclist `s01f45` idx 4 và nguyên nhân sinh ra cụm điểm dưới mặt đường ở `s02f42` vẫn cần kiểm thêm.
